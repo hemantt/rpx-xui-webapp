@@ -1,7 +1,10 @@
 import { Injectable, Optional } from '@angular/core';
+import * as Common from '@microsoft/applicationinsights-common';
+import {ICustomProperties} from '@microsoft/applicationinsights-core-js';
 import { AppInsights } from 'applicationinsights-js';
 import { HttpClient } from '@angular/common/http';
-import { AbstractAppInsights} from './appInsightsWrapper';
+// import { AbstractAppInsights} from './appInsightsWrapper';
+import { ApplicationInsights } from '@microsoft/applicationinsights-web'
 
 export interface IMonitoringService {
   logPageView(name?: string, url?: string, properties?: any,
@@ -52,28 +55,46 @@ export class MonitorConfig implements Microsoft.ApplicationInsights.IConfig {
 export class MonitoringService implements IMonitoringService {
 
   constructor(private http: HttpClient, @Optional() private config?: MonitorConfig,
-              @Optional() private appInsights?: AbstractAppInsights) {
+              @Optional() private appInsights?: ApplicationInsights) {
                 if (!appInsights) {
-                appInsights = AppInsights;
+                appInsights = new ApplicationInsights({ config: {
+                    instrumentationKey: '3e01926b-51d7-477e-a94b-702c9c4a8768'
+                  } });
               }
             }
 
-  logPageView(name?: string, url?: string, properties?: any,
+
+  logPageView(name?: string, uri?: string, properties?: any,
               measurements?: any, duration?: number) {
     this.send(() => {
-      this.appInsights.trackPageView(name, url, properties, measurements, duration);
+      const obj = {
+        name,
+        uri,
+        refUri: uri,
+        pageType: null,
+        isLoggedIn: true,
+        properties: {
+          duration
+        }
+      }
+
+      this.appInsights.trackPageView(obj);
     });
   }
 
   logEvent(name: string, properties?: any, measurements?: any) {
     this.send(() => {
-      this.appInsights.trackEvent(name, properties, measurements);
+      const event = {
+        name
+      }
+      this.appInsights.trackEvent(event, properties);
     });
   }
 
   logException(exception: Error) {
-    this.send(() => {
-      this.appInsights.trackException(exception);
+    this.send(() => { this.appInsights.trackException({
+      exception
+    });
     });
   }
 
@@ -87,7 +108,7 @@ export class MonitoringService implements IMonitoringService {
           instrumentationKey: it['key']
         };
         if (!this.appInsights.config) {
-          this.appInsights.downloadAndSetup(this.config);
+          // this.appInsights.downloadAndSetup(this.config);
         }
         func();
       });
